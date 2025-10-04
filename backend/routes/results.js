@@ -3,7 +3,6 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const AnalysisResult = require('../models/AnalysisResult');
 
-// GET /api/results/:fileId
 router.get('/:fileId', auth, async (req, res) => {
     try {
         const result = await AnalysisResult.findOne({ fileId: req.params.fileId, userId: req.user.id });

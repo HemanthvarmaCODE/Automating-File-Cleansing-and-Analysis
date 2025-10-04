@@ -16,7 +16,7 @@ const fileUploadSchema = new mongoose.Schema({
     required: true
   },
   fileSize: Number,
-  filePath: String, // Original file location
+  filePath: String, 
   status: {
     type: String,
     enum: ['uploading', 'queued', 'processing', 'completed', 'error'],

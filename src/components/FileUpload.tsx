@@ -57,7 +57,6 @@ const FileUpload = () => {
     setFiles(prev => [...prev, ...newFiles]);
     toast.success(`${fileList.length} file(s) added for processing`);
 
-    // Simulate processing
     newFiles.forEach((_, idx) => {
       setTimeout(() => {
         setFiles(prev => 

@@ -2,11 +2,9 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const User = require('../models/User'); // Your user model
+const User = require('../models/User'); 
 
-// POST /api/auth/register
 router.post('/register', async (req, res) => {
-    // Implementation for user registration
     const { name, email, password } = req.body;
 
     try {
@@ -48,9 +46,7 @@ router.post('/register', async (req, res) => {
 });
 
 
-// POST /api/auth/login
 router.post('/login', async (req, res) => {
-    // Implementation for user login
     const { email, password } = req.body;
     try {
         const user = await User.findOne({ email });

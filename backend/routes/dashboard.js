@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 
-// GET /api/dashboard/stats
 router.get('/stats', auth, async (req, res) => {
-    // In a real application, you would fetch this data from your database
     const stats = {
         totalFilesProcessed: 1247,
         totalPIIRedacted: 8432,

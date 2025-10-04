@@ -12,7 +12,6 @@ const analysisResultSchema = new mongoose.Schema({
     required: true
   },
   
-  // PII Detection Results
   piiDetected: {
     names: { type: Number, default: 0 },
     emails: { type: Number, default: 0 },
@@ -21,21 +20,17 @@ const analysisResultSchema = new mongoose.Schema({
     otherPII: { type: Number, default: 0 }
   },
   
-  // Extracted Content
   extractedText: String,
   cleansedText: String,
   
-  // File Analysis
   keyFindings: [String],
   securityInsights: [String],
   
-  // Output Files
   cleansedFilePath: String,
-  redactedImagePath: String, // For images
-  ocrTextPath: String, // For images with OCR
+  redactedImagePath: String, 
+  ocrTextPath: String, 
   
-  // Metadata
-  processingTime: Number, // in milliseconds
+  processingTime: Number, 
   createdAt: {
     type: Date,
     default: Date.now

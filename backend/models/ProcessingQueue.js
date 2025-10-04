@@ -8,7 +8,7 @@ const processingQueueSchema = new mongoose.Schema({
   },
   priority: {
     type: Number,
-    default: 0 // Higher number = higher priority
+    default: 0 
   },
   status: {
     type: String,

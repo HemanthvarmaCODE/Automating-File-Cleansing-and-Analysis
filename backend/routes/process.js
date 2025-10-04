@@ -6,7 +6,6 @@ const path = require('path');
 const FileUpload = require('../models/FileUpload');
 const AnalysisResult = require('../models/AnalysisResult');
 
-// POST /api/process/:fileId
 router.post('/:fileId', auth, async (req, res) => {
     try {
         const file = await FileUpload.findById(req.params.fileId);

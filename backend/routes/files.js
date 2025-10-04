@@ -6,7 +6,6 @@ const multer = require('multer');
 
 const upload = multer({ dest: process.env.UPLOAD_DIR });
 
-// POST /api/files/upload
 router.post('/upload', [auth, upload.array('files')], async (req, res) => {
     try {
         const uploadedFiles = req.files.map(file => ({
@@ -27,7 +26,6 @@ router.post('/upload', [auth, upload.array('files')], async (req, res) => {
 });
 
 
-// GET /api/files
 router.get('/', auth, async (req, res) => {
   try {
     const files = await FileUpload.find({ userId: req.user.id });
