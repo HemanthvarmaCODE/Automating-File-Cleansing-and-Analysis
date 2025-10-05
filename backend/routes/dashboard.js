@@ -23,11 +23,10 @@ router.get('/stats', auth, async (req, res) => {
             return acc;
         }, 0);
         
-        // Define a "critical finding" as any result with more than 10 PII instances
         const criticalFindings = results.filter(result => {
              if (result.piiDetected && typeof result.piiDetected === 'object') {
                 const piiCount = Object.values(result.piiDetected).reduce((sum, count) => sum + (count || 0), 0);
-                return piiCount > 10;
+                return piiCount > 5;
             }
             return false;
         }).length;
@@ -45,12 +44,12 @@ router.get('/stats', auth, async (req, res) => {
         res.json({
             totalFilesProcessed,
             totalPIIRedacted,
-            criticalFindings, // New data
+            criticalFindings, 
             avgProcessingTime,
             recentFiles,
-            storageUsed: user.storageUsed, // New data
-            storageLimit: user.storageLimit, // New data
-            queueCount // New data
+            storageUsed: user.storageUsed, 
+            storageLimit: user.storageLimit, 
+            queueCount 
         });
 
     } catch (err) {

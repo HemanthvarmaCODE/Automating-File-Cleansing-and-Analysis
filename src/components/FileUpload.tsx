@@ -75,26 +75,26 @@ const FileUpload = () => {
     });
 
     try {
-      // Step 1: Upload all files and create a session
-      const uploadResponse = await api.post('/files/upload', formData);
-      const { sessionId } = uploadResponse.data;
-
-      if (!sessionId) {
-        throw new Error("Failed to create an analysis session.");
-      }
-
-      // Step 2: Trigger the processing for the entire session
-      await api.post(`/process/${sessionId}`);
+    // Step 1: Upload
+    const uploadResponse = await api.post('/files/upload', formData);
+    console.log("Upload response:", uploadResponse.data);
       
-      // Step 3: On success, notify user and navigate to results
-      toast.success("Batch processing complete! Navigating to results.");
-      navigate('/results');
+    const { sessionId } = uploadResponse.data;
+    if (!sessionId) throw new Error("No sessionId returned from upload.");
 
-    } catch (error) {
-      console.error("Error processing batch:", error);
-      const errorMessage = error.response?.data?.msg || "An unexpected error occurred.";
-      toast.error(`Processing failed: ${errorMessage}`);
-    } finally {
+    // Step 2: Trigger processing
+    const processResponse = await api.post(`/process/${sessionId}`);
+    console.log("Process response:", processResponse.data);
+
+    toast.success("Batch processing complete! Navigating to results.");
+    navigate('/results');
+
+  } catch (error: any) {
+    console.error("Error processing batch:", error);
+    console.error("Full response:", error.response);
+    const errorMessage = error.response?.data?.msg || error.message;
+    toast.error(`Processing failed: ${errorMessage}`);
+  } finally {
       setIsUploading(false);
       setSelectedFiles([]); // Clear the queue after processing
     }

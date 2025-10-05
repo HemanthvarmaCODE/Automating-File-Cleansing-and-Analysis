@@ -13,22 +13,20 @@ from pathlib import Path
 import shutil
 from transformers import pipeline, BlipForConditionalGeneration, BlipProcessor
 from PIL import Image
+from pptx import Presentation
+from openpyxl import load_workbook
 
-# --- 1. SCRIPT INITIALIZATION & MODEL LOADING ---
 warnings.filterwarnings('ignore')
 
 try:
-    # Load the powerful Hugging Face model for PII detection
     ner_pipeline = pipeline("ner", model="dslim/bert-base-NER", aggregation_strategy="simple")
     
-    # Load the BLIP model for image descriptions
     blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-large")
     blip_model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-large")
 except Exception as e:
     print(json.dumps([{"error": f"Failed to load AI models: {e}"}]), file=sys.stderr)
     sys.exit(1)
 
-# --- 2. ADVANCED VULNERABILITY & PII ANALYSIS ENGINE ---
 def analyze_and_redact_text(text: str):
     if not isinstance(text, str) or not text.strip():
         return text, {}, []
@@ -52,7 +50,6 @@ def analyze_and_redact_text(text: str):
     pii_counts['email'] = len(re.findall(email_pattern, redacted_text))
     redacted_text = re.sub(email_pattern, '[REDACTED]', redacted_text)
 
-    # Generate vulnerability descriptions
     if pii_counts['person'] > 0:
         vulnerabilities.append({"description": f"Detected {pii_counts['person']} person names.", "severity": "High"})
     if pii_counts['organization'] > 0:
@@ -62,7 +59,6 @@ def analyze_and_redact_text(text: str):
 
     return redacted_text, pii_counts, vulnerabilities
 
-# --- 3. DEDICATED FILE REDACTION FUNCTIONS ---
 
 def process_pdf(file_path, output_path):
     doc = fitz.open(file_path)
@@ -96,16 +92,71 @@ def process_docx(file_path, output_path):
     doc.save(output_path)
     return pii_counts, vulnerabilities
 
+
+def process_pptx(file_path, output_path):
+    prs = Presentation(file_path)
+    full_text = []
+
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                full_text.append(shape.text)
+
+    _, pii_counts, vulnerabilities = analyze_and_redact_text("\n".join(full_text))
+
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                redacted_text, _, _ = analyze_and_redact_text(shape.text)
+                shape.text = redacted_text
+
+    prs.save(output_path)
+    return pii_counts, vulnerabilities
+
+
+def process_xlsx(file_path, output_path):
+    wb = load_workbook(file_path)
+    full_text = []
+
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows():
+            for cell in row:
+                if cell.value and isinstance(cell.value, str):
+                    full_text.append(cell.value)
+
+    _, pii_counts, vulnerabilities = analyze_and_redact_text("\n".join(full_text))
+
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows():
+            for cell in row:
+                if cell.value and isinstance(cell.value, str):
+                    redacted_text, _, _ = analyze_and_redact_text(cell.value)
+                    cell.value = redacted_text
+
+    wb.save(output_path)
+    return pii_counts, vulnerabilities
+
+
+def process_csv(file_path, output_path):
+    df = pd.read_csv(file_path, dtype=str, keep_default_na=False)
+    full_text = "\n".join(df.astype(str).apply(lambda x: " ".join(x), axis=1))
+
+    _, pii_counts, vulnerabilities = analyze_and_redact_text(full_text)
+
+    for col in df.columns:
+        df[col] = df[col].astype(str).apply(lambda v: analyze_and_redact_text(v)[0])
+
+    df.to_csv(output_path, index=False)
+    return pii_counts, vulnerabilities
+
 def process_image(file_path, output_path):
     try:
         raw_image = Image.open(file_path).convert('RGB')
         
-        # Generate description with BLIP
         inputs = blip_processor(raw_image, return_tensors="pt")
         out = blip_model.generate(**inputs)
         description = blip_processor.decode(out[0], skip_special_tokens=True)
 
-        # OCR and Redact
         img = cv2.imread(file_path)
         ocr_data = pytesseract.image_to_data(img, output_type=pytesseract.Output.DICT)
         pii_counts = {}
@@ -130,7 +181,6 @@ def process_image(file_path, output_path):
         return {}, [{"description": f"Failed to process image: {e}", "severity": "High"}], "Could not analyze image."
 
 
-# --- 4. MAIN BATCH PROCESSING LOGIC ---
 def main(directory_to_process):
     all_results = []
     for filename in os.listdir(directory_to_process):
@@ -152,6 +202,15 @@ def main(directory_to_process):
             elif file_type == 'docx':
                 pii, vulns = process_docx(file_path, cleansed_path)
                 result['summary'] = "Word document analyzed and redacted."
+            elif file_type == 'pptx':
+                pii, vulns = process_pptx(file_path, cleansed_path)
+                result['summary'] = "PowerPoint presentation analyzed and redacted."
+            elif file_type in ['xlsx', 'xlsm']:
+                pii, vulns = process_xlsx(file_path, cleansed_path)
+                result['summary'] = "Excel workbook analyzed and redacted."
+            elif file_type == 'csv':
+                pii, vulns = process_csv(file_path, cleansed_path)
+                result['summary'] = "CSV file analyzed and redacted."
             elif file_type in ['jpg', 'jpeg', 'png', 'bmp']:
                 cleansed_path = os.path.join('redacted_images', cleansed_name)
                 pii, vulns, description = process_image(file_path, cleansed_path)
@@ -174,7 +233,6 @@ def main(directory_to_process):
         
     return all_results
 
-# --- 5. SCRIPT EXECUTION ---
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         input_directory = sys.argv[1]

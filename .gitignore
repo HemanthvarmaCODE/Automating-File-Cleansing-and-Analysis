@@ -25,3 +25,4 @@ dist-ssr
 backend/uploads
 backend/.env
 .env
+backend/redacted_images
