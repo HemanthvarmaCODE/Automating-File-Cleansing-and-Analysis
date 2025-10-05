@@ -1,8 +1,10 @@
-pandas
-python-pptx
-PyMuPDF
-spacy
-opencv-python
-pytesseract
+torch
+transformers
 Pillow
+spacy
+pandas
 openpyxl
+python-docx
+PyMuPDF
+pytesseract
+opencv-python-headless

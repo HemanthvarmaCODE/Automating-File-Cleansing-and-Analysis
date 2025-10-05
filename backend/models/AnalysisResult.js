@@ -1,40 +1,41 @@
 const mongoose = require('mongoose');
 
 const analysisResultSchema = new mongoose.Schema({
-  fileId: {
+  sessionId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'FileUpload',
-    required: true
+    ref: 'AnalysisSession',
+    required: true,
   },
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+  originalFileName: {
+    type: String,
+    required: true,
   },
-  
+  fileType: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['completed', 'error'],
+    required: true,
+  },
+  summary: {
+    type: String,
+    default: 'No summary available.'
+  },
   piiDetected: {
-    names: { type: Number, default: 0 },
-    emails: { type: Number, default: 0 },
-    phoneNumbers: { type: Number, default: 0 },
-    addresses: { type: Number, default: 0 },
-    otherPII: { type: Number, default: 0 }
+    type: Map,
+    of: Number,
   },
-  
-  extractedText: String,
-  cleansedText: String,
-  
-  keyFindings: [String],
-  securityInsights: [String],
-  
+  vulnerabilities: [{
+    description: String,
+    severity: String, 
+  }],
   cleansedFilePath: String,
-  redactedImagePath: String, 
-  ocrTextPath: String, 
-  
-  processingTime: Number, 
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 module.exports = mongoose.model('AnalysisResult', analysisResultSchema);

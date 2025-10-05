@@ -2,14 +2,18 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const AnalysisResult = require('../models/AnalysisResult');
+const AnalysisSession = require('../models/AnalysisSession'); // FIX: Import the AnalysisSession model
 const path = require('path');
 const fs = require('fs');
 
-router.get('/', auth, async (req, res) => {
+// GET results for the latest session
+router.get('/latest', auth, async (req, res) => {
     try {
-        const results = await AnalysisResult.find({ userId: req.user.id })
-            .populate('fileId', 'originalFileName fileType')
-            .sort({ createdAt: -1 });
+        const latestSession = await AnalysisSession.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
+        if (!latestSession) {
+            return res.json([]);
+        }
+        const results = await AnalysisResult.find({ sessionId: latestSession._id });
         res.json(results);
     } catch (err) {
         console.error(err.message);
@@ -17,38 +21,27 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-router.get('/:fileId', auth, async (req, res) => {
+// GET download cleansed file by result ID
+router.get('/:resultId/download', auth, async (req, res) => {
     try {
-        const result = await AnalysisResult.findOne({ fileId: req.params.fileId, userId: req.user.id });
+        const result = await AnalysisResult.findById(req.params.resultId);
         if (!result) {
-            return res.status(404).json({ msg: 'Result not found' });
-        }
-        res.json(result);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
-    }
-});
-
-// FIX: Add the missing download route
-router.get('/:fileId/download', auth, async (req, res) => {
-    try {
-        const result = await AnalysisResult.findOne({ fileId: req.params.fileId, userId: req.user.id })
-            .populate('fileId', 'originalFileName');
-
-        if (!result || !result.cleansedFilePath) {
-            return res.status(404).json({ msg: 'Cleansed file not found.' });
+            return res.status(404).send('Analysis result not found.');
         }
 
+        const session = await AnalysisSession.findById(result.sessionId);
+        if (!session || session.userId.toString() !== req.user.id) {
+            return res.status(401).send('Unauthorized');
+        }
+        
         const filePath = path.resolve(result.cleansedFilePath);
-
         if (fs.existsSync(filePath)) {
-            res.download(filePath, result.fileId ? `cleansed_${result.fileId.originalFileName}` : 'cleansed_file');
+            res.download(filePath, `cleansed_${result.originalFileName}`);
         } else {
-            return res.status(404).json({ msg: 'File path does not exist.' });
+            res.status(404).send('Cleansed file not found on server.');
         }
     } catch (err) {
-        console.error('Download error:', err.message);
+        console.error("Download Error:", err.message);
         res.status(500).send('Server Error');
     }
 });

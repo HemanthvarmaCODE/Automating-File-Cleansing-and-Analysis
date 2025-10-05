@@ -3,91 +3,59 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { spawn } = require('child_process');
 const path = require('path');
-const FileUpload = require('../models/FileUpload');
+const AnalysisSession = require('../models/AnalysisSession');
 const AnalysisResult = require('../models/AnalysisResult');
 
-router.post('/:fileId', auth, async (req, res) => {
+router.post('/:sessionId', auth, async (req, res) => {
     try {
-        const file = await FileUpload.findOne({ _id: req.params.fileId, userId: req.user.id });
-        if (!file) {
-            return res.status(404).json({ msg: 'File not found' });
+        const session = await AnalysisSession.findOne({ _id: req.params.sessionId, userId: req.user.id }).populate('files');
+        if (!session) {
+            return res.status(404).json({ msg: 'Analysis session not found.' });
         }
 
-        file.status = 'processing';
-        await file.save();
+        session.status = 'processing';
+        await session.save();
 
         const scriptPath = path.resolve(__dirname, '..', 'python_model', 'process.py');
+        const pythonExecutable = process.env.PYTHON_PATH || 'python';
         
-        // FIX: Use the absolute path to Python from the .env file
-        const pythonExecutable = process.env.PYTHON_PATH || 'python'; // Fallback to 'python' if not set
+        // Create a temporary directory for this session's files
+        const sessionDir = path.resolve(process.env.UPLOAD_DIR, req.params.sessionId);
+        if (!require('fs').existsSync(sessionDir)) require('fs').mkdirSync(sessionDir);
 
-        const pythonProcess = spawn(pythonExecutable, [
-            scriptPath,
-            path.resolve(file.filePath)
-        ]);
+        for (const file of session.files) {
+            const destPath = path.join(sessionDir, file.originalFileName);
+            require('fs').copyFileSync(file.filePath, destPath);
+        }
 
-        let outputData = '';
-        pythonProcess.stdout.on('data', (data) => {
-            outputData += data.toString();
-        });
+        const pythonProcess = spawn(pythonExecutable, [scriptPath, sessionDir]);
 
-        let errorData = '';
-        pythonProcess.stderr.on('data', (data) => {
-            errorData += data.toString();
-        });
+        let outputData = '', errorData = '';
+        pythonProcess.stdout.on('data', (data) => outputData += data.toString());
+        pythonProcess.stderr.on('data', (data) => errorData += data.toString());
         
-        pythonProcess.on('error', (err) => {
-            console.error(`Failed to start subprocess for fileId ${file._id}:`, err);
-            file.status = 'error';
-            file.errorMessage = 'Failed to start the analysis script. Please check server configuration.';
-            file.save();
-            if (!res.headersSent) {
-                res.status(500).send('Failed to start analysis process.');
-            }
-        });
-
         pythonProcess.on('close', async (code) => {
-            if (res.headersSent) return;
-
             if (code === 0) {
-                try {
-                    const result = JSON.parse(outputData);
-                    const analysisResult = new AnalysisResult({
-                        fileId: file._id,
-                        userId: req.user.id,
-                        piiDetected: result.piiDetected || {},
-                        keyFindings: result.keyFindings || [],
-                        cleansedFilePath: result.cleansedFilePath,
-                        processingTime: new Date() - new Date(file.uploadedAt),
+                const results = JSON.parse(outputData);
+                for (const result of results) {
+                    await AnalysisResult.create({
+                        sessionId: session._id,
+                        ...result
                     });
-                    await analysisResult.save();
-                    
-                    file.status = 'completed';
-                    file.processedAt = new Date();
-                    await file.save();
-                    
-                    res.status(200).json(analysisResult);
-                } catch (parseError) {
-                    console.error(`JSON Parse Error for fileId ${file._id}:`, parseError, "Raw output:", outputData);
-                    file.status = 'error';
-                    file.errorMessage = "Failed to parse analysis result.";
-                    await file.save();
-                    res.status(500).send('Error parsing analysis result');
                 }
+                session.status = 'completed';
             } else {
-                console.error(`Python script error for fileId ${file._id}:`, errorData);
-                file.status = 'error';
-                file.errorMessage = errorData;
-                await file.save();
-                res.status(500).send('Error processing file');
+                console.error(`Python script error for session ${session._id}:`, errorData);
+                session.status = 'failed';
             }
+            session.completedAt = new Date();
+            await session.save();
+            res.status(200).json({ message: 'Processing complete', status: session.status });
         });
 
     } catch (err) {
         console.error("Error in process route:", err.message);
-        if (!res.headersSent) {
-            res.status(500).send('Server Error');
-        }
+        res.status(500).send('Server Error');
     }
 });
 

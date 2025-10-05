@@ -1,12 +1,11 @@
-import Navbar from "@/components/Navbar";
 import ResultsView from "@/components/ResultsView";
+import PageLayout from "@/components/PageLayout";
 
 const Results = () => {
   return (
-    <>
-      <Navbar />
+    <PageLayout>
       <ResultsView />
-    </>
+    </PageLayout>
   );
 };
 

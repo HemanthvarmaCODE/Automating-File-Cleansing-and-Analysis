@@ -1,12 +1,11 @@
-import Navbar from "@/components/Navbar";
 import Dashboard from "@/components/Dashboard";
+import PageLayout from "@/components/PageLayout";
 
 const DashboardPage = () => {
   return (
-    <>
-      <Navbar />
+    <PageLayout>
       <Dashboard />
-    </>
+    </PageLayout>
   );
 };
 

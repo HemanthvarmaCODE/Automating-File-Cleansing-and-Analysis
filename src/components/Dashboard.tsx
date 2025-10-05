@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
-import { FileCheck, Shield, AlertTriangle, Clock, TrendingUp, Database } from "lucide-react";
+import { FileCheck, Shield, AlertTriangle, Clock, TrendingUp, Database, CheckCircle2 } from "lucide-react";
 import api from '@/lib/api';
 
 const Dashboard = () => {
   const [dashboardStats, setDashboardStats] = useState(null);
+  const [apiStatus, setApiStatus] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -13,6 +14,7 @@ const Dashboard = () => {
         setDashboardStats(response.data);
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
+        setApiStatus(false);
       }
     };
     fetchStats();
@@ -20,45 +22,41 @@ const Dashboard = () => {
 
   if (!dashboardStats) {
     return (
-        <div className="min-h-screen py-12 px-6 flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-screen">
             <p>Loading dashboard...</p>
         </div>
     );
   }
+
+  const storagePercentage = dashboardStats.storageLimit > 0
+    ? (dashboardStats.storageUsed / dashboardStats.storageLimit) * 100
+    : 0;
 
   const stats = [
     {
       icon: FileCheck,
       label: "Files Processed",
       value: dashboardStats.totalFilesProcessed,
-      change: "+12.5%",
-      positive: true
     },
     {
       icon: Shield,
       label: "PII Instances Redacted",
       value: dashboardStats.totalPIIRedacted,
-      change: "+8.2%",
-      positive: true
     },
     {
       icon: AlertTriangle,
       label: "Critical Findings",
-      value: "23",
-      change: "-15.3%",
-      positive: true
+      value: dashboardStats.criticalFindings,
     },
     {
       icon: Clock,
       label: "Avg Processing Time",
       value: `${(dashboardStats.avgProcessingTime / 1000).toFixed(1)}s`,
-      change: "-22.1%",
-      positive: true
     }
   ];
 
   return (
-    <div className="min-h-screen py-12 px-6">
+    <div className="py-12 px-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-12">
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
@@ -72,15 +70,12 @@ const Dashboard = () => {
           {stats.map((stat, idx) => (
             <Card
               key={idx}
-              className="p-6 border-border hover:border-primary/50 transition-all"
+              className="p-6 border-border hover:border-primary/50 transition-all bg-card/50 backdrop-blur-sm"
             >
-              <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center justify-between mb-4">
                 <div className="p-3 rounded-lg bg-primary/10">
                   <stat.icon className="w-6 h-6 text-primary" />
                 </div>
-                <span className={`text-sm font-medium ${stat.positive ? 'text-primary' : 'text-destructive'}`}>
-                  {stat.change}
-                </span>
               </div>
               <h3 className="text-3xl font-bold mb-1">{stat.value}</h3>
               <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -88,20 +83,20 @@ const Dashboard = () => {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Card className="lg:col-span-2 p-6 border-border">
+          <Card className="lg:col-span-2 p-6 border-border bg-card/50 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">Recent Files</h2>
               <Database className="w-6 h-6 text-primary" />
             </div>
             <div className="space-y-4">
-              {dashboardStats.recentFiles.map((file, idx) => (
+              {dashboardStats.recentFiles.map((file) => (
                 <div
-                  key={idx}
+                  key={file._id}
                   className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/50 transition-all"
                 >
                   <div className="flex-1">
-                    <p className="font-medium mb-1">{file.originalFileName}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="font-medium mb-1 truncate">{file.originalFileName}</p>
+                    <p className="text-sm text-muted-foreground capitalize">
                       {file.status}
                     </p>
                   </div>
@@ -110,9 +105,12 @@ const Dashboard = () => {
                   </div>
                 </div>
               ))}
+              {dashboardStats.recentFiles.length === 0 && (
+                <p className="text-muted-foreground text-center py-4">No recent files found.</p>
+              )}
             </div>
           </Card>
-          <Card className="p-6 border-border">
+          <Card className="p-6 border-border bg-card/50 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold">System Health</h2>
               <TrendingUp className="w-6 h-6 text-primary" />
@@ -121,34 +119,37 @@ const Dashboard = () => {
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm text-muted-foreground">API Status</span>
-                  <span className="text-sm font-medium text-primary">Operational</span>
+                  <span className={`text-sm font-medium ${apiStatus ? 'text-primary' : 'text-destructive'}`}>
+                    {apiStatus ? 'Operational' : 'Offline'}
+                  </span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-primary rounded-full" style={{ width: '100%' }} />
+                  <div className={`h-full rounded-full ${apiStatus ? 'bg-primary' : 'bg-destructive'}`} style={{ width: '100%' }} />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm text-muted-foreground">Processing Queue</span>
-                  <span className="text-sm font-medium">Active</span>
+                  <span className="text-sm font-medium">{dashboardStats.queueCount} files</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-accent rounded-full" style={{ width: '10%' }} />
+                  <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(dashboardStats.queueCount * 10, 100)}%` }} />
                 </div>
               </div>
               <div>
                 <div className="flex justify-between mb-2">
                   <span className="text-sm text-muted-foreground">Storage Used</span>
-                  <span className="text-sm font-medium">42%</span>
+                  <span className="text-sm font-medium">{storagePercentage.toFixed(1)}%</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <div className="h-full bg-secondary rounded-full" style={{ width: '42%' }} />
+                  <div className="h-full bg-secondary rounded-full" style={{ width: `${storagePercentage}%` }} />
                 </div>
               </div>
               <div className="pt-4 border-t border-border">
-                <p className="text-sm text-muted-foreground mb-2">Last System Check</p>
-                <p className="text-sm font-medium">1 minute ago</p>
-                <p className="text-xs text-primary mt-1">All systems operational</p>
+                <p className="text-sm text-muted-foreground mb-2 flex items-center">
+                  <CheckCircle2 className="w-4 h-4 mr-2 text-primary" />
+                  All systems operational
+                </p>
               </div>
             </div>
           </Card>

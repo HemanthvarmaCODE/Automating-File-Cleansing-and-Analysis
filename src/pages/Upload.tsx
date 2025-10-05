@@ -1,12 +1,11 @@
-import Navbar from "@/components/Navbar";
 import FileUpload from "@/components/FileUpload";
+import PageLayout from "@/components/PageLayout";
 
 const Upload = () => {
   return (
-    <>
-      <Navbar />
+    <PageLayout>
       <FileUpload />
-    </>
+    </PageLayout>
   );
 };
 
