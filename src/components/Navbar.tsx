@@ -1,14 +1,17 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, LayoutDashboard, Upload, FileText, Menu, X } from "lucide-react";
+import { Shield, LayoutDashboard, Upload, FileText, Menu, X, LogOut } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Navbar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
+  const { isAuthenticated, logout } = useAuth(); 
+  
   const navItems = [
-    { path: "/", label: "Home", icon: Shield },
+    { path: "/", label: "Home", icon: Shield }, 
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/upload", label: "Upload", icon: Upload },
     { path: "/results", label: "Results", icon: FileText }
@@ -30,36 +33,56 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => (
-              <Link key={item.path} to={item.path}>
-                <Button
-                  variant="ghost"
-                  className={`${
-                    isActive(item.path)
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground"
-                  } transition-all`}
-                >
-                  <item.icon className="w-4 h-4 mr-2" />
-                  {item.label}
-                </Button>
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              if (!isAuthenticated && item.path !== '/') return null;
+              if (!isAuthenticated && item.path === '/') return null; 
+
+              return (
+                <Link key={item.path} to={item.path}>
+                  <Button
+                    variant="ghost"
+                    className={`${
+                      isActive(item.path)
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    } transition-all`}
+                  >
+                    <item.icon className="w-4 h-4 mr-2" />
+                    {item.label}
+                  </Button>
+                </Link>
+              );
+            })}
+            {isAuthenticated && (
+              <Button variant="ghost" onClick={logout} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            )}
+             {!isAuthenticated && (
+                <Link to="/login">
+                    <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+                        Login
+                    </Button>
+                </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
+          {isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
+          )}
         </div>
 
         {/* Mobile Navigation */}
-        {mobileMenuOpen && (
+        {mobileMenuOpen && isAuthenticated && (
           <div className="md:hidden py-4 border-t border-border">
             <div className="flex flex-col gap-2">
               {navItems.map((item) => (
@@ -81,6 +104,17 @@ const Navbar = () => {
                   </Button>
                 </Link>
               ))}
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  logout();
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full justify-start text-muted-foreground"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         )}
