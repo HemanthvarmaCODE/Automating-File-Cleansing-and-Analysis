@@ -1,50 +1,24 @@
+import { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Eye, FileText, Image, AlertCircle, CheckCircle2 } from "lucide-react";
+import axios from 'axios';
 
 const ResultsView = () => {
-  const analysisResults = [
-    {
-      fileName: "employee_records.csv",
-      fileType: "CSV",
-      description: "Employee database with personal information",
-      piiFound: ["145 Names", "145 Email addresses", "87 Phone numbers"],
-      status: "completed",
-      insights: [
-        "Redacted 145 employee names from Name column",
-        "Masked 145 email addresses from Email ID column",
-        "Removed 87 phone numbers from Contact column",
-        "Total records processed: 234 rows"
-      ]
-    },
-    {
-      fileName: "security_audit.pdf",
-      fileType: "PDF",
-      description: "Security assessment report with findings",
-      piiFound: ["12 Names", "8 Email addresses"],
-      status: "completed",
-      insights: [
-        "Extracted and cleansed 47 pages of text",
-        "Identified IAM policy statements on pages 12-15",
-        "Found firewall configuration details on pages 23-28",
-        "Redacted auditor names and contact information"
-      ]
-    },
-    {
-      fileName: "network_diagram.png",
-      fileType: "Image",
-      description: "Network architecture with security zones",
-      piiFound: ["3 IP addresses", "2 Hostnames"],
-      status: "completed",
-      insights: [
-        "Detected DMZ configuration with 3-tier architecture",
-        "Blurred 2 faces from embedded photos",
-        "Redacted 3 internal IP addresses via OCR",
-        "Network segmentation follows defense-in-depth strategy"
-      ]
-    }
-  ];
+  const [analysisResults, setAnalysisResults] = useState([]);
+
+  useEffect(() => {
+      const fetchResults = async () => {
+          try {
+              const response = await axios.get('/api/results');
+              setAnalysisResults(response.data);
+          } catch (error) {
+              console.error("Error fetching results:", error);
+          }
+      };
+      fetchResults();
+  }, []);
 
   return (
     <div className="min-h-screen py-12 px-6">
@@ -97,7 +71,7 @@ const ResultsView = () => {
                       <Eye className="w-4 h-4 mr-2" />
                       View
                     </Button>
-                    <Button variant="outline" size="sm" className="border-primary/50 text-primary hover:bg-primary/10">
+                    <Button variant="outline" size="sm" className="border-primary/50 text-primary hover:bg-primary/10" onClick={() => window.location.href = `/api/results/${result.fileId}/download`}>
                       <Download className="w-4 h-4 mr-2" />
                       Download
                     </Button>

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Upload, FileText, Image, FileSpreadsheet, FileType, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import axios from 'axios';
 
 interface UploadedFile {
+  _id: string;
   name: string;
   type: string;
   size: number;
@@ -14,6 +16,25 @@ interface UploadedFile {
 const FileUpload = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      files.forEach(async file => {
+        if (file.status === 'processing') {
+          try {
+            const response = await axios.get(`/api/files/${file._id}/status`);
+            if (response.data.status !== 'processing') {
+              setFiles(prev => prev.map(f => f._id === file._id ? { ...f, status: response.data.status } : f));
+            }
+          } catch (error) {
+            console.error("Error fetching file status:", error);
+          }
+        }
+      });
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [files]);
 
   const getFileIcon = (type: string) => {
     if (type.includes("image")) return Image;
@@ -46,38 +67,32 @@ const FileUpload = () => {
     }
   };
 
-  const processFiles = (fileList: File[]) => {
-    const newFiles: UploadedFile[] = fileList.map(file => ({
-      name: file.name,
-      type: file.type,
-      size: file.size,
-      status: "uploading" as const
-    }));
-
-    setFiles(prev => [...prev, ...newFiles]);
-    toast.success(`${fileList.length} file(s) added for processing`);
-
-    newFiles.forEach((_, idx) => {
-      setTimeout(() => {
-        setFiles(prev => 
-          prev.map((f, i) => 
-            i === prev.length - newFiles.length + idx 
-              ? { ...f, status: "processing" as const }
-              : f
-          )
-        );
-      }, 1000);
-
-      setTimeout(() => {
-        setFiles(prev => 
-          prev.map((f, i) => 
-            i === prev.length - newFiles.length + idx 
-              ? { ...f, status: "completed" as const }
-              : f
-          )
-        );
-      }, 3000);
+  const processFiles = async (fileList: File[]) => {
+    const formData = new FormData();
+    fileList.forEach(file => {
+        formData.append('files', file);
     });
+
+    try {
+        const uploadResponse = await axios.post('/api/files/upload', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+
+        const uploadedFiles = uploadResponse.data.uploadedFiles;
+        setFiles(prev => [...prev, ...uploadedFiles.map(f => ({...f, status: 'processing'}))]);
+        toast.success(`${fileList.length} file(s) added for processing`);
+
+        // Trigger processing for each file
+        for (const file of uploadedFiles) {
+            await axios.post(`/api/process/${file._id}`);
+        }
+
+    } catch (error) {
+        console.error("Error uploading files:", error);
+        toast.error("File upload failed.");
+    }
   };
 
   const removeFile = (index: number) => {

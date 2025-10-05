@@ -1,19 +1,40 @@
+import { useEffect, useState } from 'react';
 import { Card } from "@/components/ui/card";
 import { FileCheck, Shield, AlertTriangle, Clock, TrendingUp, Database } from "lucide-react";
+import axios from 'axios';
 
 const Dashboard = () => {
+  const [dashboardStats, setDashboardStats] = useState({
+    totalFilesProcessed: 0,
+    totalPIIRedacted: 0,
+    avgProcessingTime: 0,
+    recentFiles: []
+  });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get('/api/dashboard/stats');
+        setDashboardStats(response.data);
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+      }
+    };
+    fetchStats();
+  }, []);
+  
   const stats = [
     {
       icon: FileCheck,
       label: "Files Processed",
-      value: "1,247",
+      value: dashboardStats.totalFilesProcessed,
       change: "+12.5%",
       positive: true
     },
     {
       icon: Shield,
       label: "PII Instances Redacted",
-      value: "8,432",
+      value: dashboardStats.totalPIIRedacted,
       change: "+8.2%",
       positive: true
     },
@@ -27,18 +48,10 @@ const Dashboard = () => {
     {
       icon: Clock,
       label: "Avg Processing Time",
-      value: "2.4s",
+      value: `${(dashboardStats.avgProcessingTime / 1000).toFixed(1)}s`,
       change: "-22.1%",
       positive: true
     }
-  ];
-
-  const recentFiles = [
-    { name: "employee_records.csv", status: "Completed", piiFound: 145, time: "2m ago" },
-    { name: "security_audit.pdf", status: "Completed", piiFound: 67, time: "15m ago" },
-    { name: "client_presentation.pptx", status: "Processing", piiFound: 0, time: "Just now" },
-    { name: "network_diagram.png", status: "Completed", piiFound: 23, time: "1h ago" },
-    { name: "access_logs.xlsx", status: "Completed", piiFound: 289, time: "2h ago" }
   ];
 
   return (
@@ -86,7 +99,7 @@ const Dashboard = () => {
             </div>
             
             <div className="space-y-4">
-              {recentFiles.map((file, idx) => (
+              {dashboardStats.recentFiles && dashboardStats.recentFiles.map((file, idx) => (
                 <div 
                   key={idx}
                   className="flex items-center justify-between p-4 rounded-lg border border-border hover:border-primary/50 transition-all"
