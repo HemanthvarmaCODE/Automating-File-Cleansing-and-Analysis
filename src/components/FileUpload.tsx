@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import api from '@/lib/api';
-
+import { useNavigate } from "react-router-dom";
 interface UploadedFile {
   _id: string;
   originalFileName: string;
@@ -16,6 +16,7 @@ interface UploadedFile {
 const FileUpload = () => {
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -225,6 +226,7 @@ const FileUpload = () => {
               <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-6"
                 size="lg"
+                onClick={() => navigate('/results')}
               >
                 View Analysis Results
               </Button>
