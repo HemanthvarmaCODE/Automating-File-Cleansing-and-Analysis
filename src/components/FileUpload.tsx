@@ -31,7 +31,7 @@ const FileUpload = () => {
           }
         }
       });
-    }, 5000); // Poll every 5 seconds
+    }, 5000); 
 
     return () => clearInterval(interval);
   }, [files]);
@@ -84,7 +84,6 @@ const FileUpload = () => {
         setFiles(prev => [...prev, ...uploadedFiles.map(f => ({...f, status: 'processing'}))]);
         toast.success(`${fileList.length} file(s) added for processing`);
 
-        // Trigger processing for each file
         for (const file of uploadedFiles) {
             await axios.post(`/api/process/${file._id}`);
         }

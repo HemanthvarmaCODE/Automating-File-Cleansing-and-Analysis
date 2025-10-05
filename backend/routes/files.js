@@ -3,37 +3,54 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const FileUpload = require('../models/FileUpload');
 const multer = require('multer');
+const path = require('path');
 
 const upload = multer({ dest: process.env.UPLOAD_DIR });
 
 router.post('/upload', [auth, upload.array('files')], async (req, res) => {
-    try {
-        const uploadedFiles = req.files.map(file => ({
-            userId: req.user.id,
-            originalFileName: file.originalname,
-            fileType: file.mimetype,
-            fileSize: file.size,
-            filePath: file.path,
-            status: 'uploaded',
-        }));
-
-        const insertedFiles = await FileUpload.insertMany(uploadedFiles);
-        res.json({ uploadedFiles: insertedFiles });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ msg: 'No files were uploaded.' });
     }
-});
 
+    const filesToSave = req.files.map(file => ({
+      userId: req.user.id,
+      originalFileName: file.originalname,
+      filePath: file.path,
+      fileSize: file.size,
+      fileType: path.extname(file.originalname).substring(1),
+      status: 'queued',
+    }));
+
+    const insertedFiles = await FileUpload.insertMany(filesToSave);
+    res.status(201).json({ uploadedFiles: insertedFiles });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
 
 router.get('/', auth, async (req, res) => {
   try {
-    const files = await FileUpload.find({ userId: req.user.id });
+    const files = await FileUpload.find({ userId: req.user.id }).sort({ uploadedAt: -1 });
     res.json(files);
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
   }
+});
+
+router.get('/:fileId/status', auth, async (req, res) => {
+    try {
+        const file = await FileUpload.findOne({ _id: req.params.fileId, userId: req.user.id });
+        if (!file) {
+            return res.status(404).json({ msg: 'File not found' });
+        }
+        res.json({ status: file.status });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
 });
 
 

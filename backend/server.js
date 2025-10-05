@@ -13,12 +13,19 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-.then(() => console.log('✓ MongoDB connected'))
-.catch(err => console.error('✗ MongoDB connection error:', err));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+    console.log('✓ MongoDB connected');
+  } catch (err) {
+    console.error('✗ MongoDB connection error:', err.message);
+    process.exit(1);
+  }
+};
+connectDB();
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/files', require('./routes/files'));
@@ -30,7 +37,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error'
+    error: err.message || 'Internal Server Error',
   });
 });
 
