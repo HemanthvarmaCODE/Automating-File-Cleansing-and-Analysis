@@ -3,13 +3,13 @@ import { Upload, FileText, Image, FileSpreadsheet, FileType, X, CheckCircle2, Al
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import axios from 'axios';
+import api from '@/lib/api';
 
 interface UploadedFile {
   _id: string;
-  name: string;
+  originalFileName: string;
   type: string;
-  size: number;
+  fileSize: number;
   status: "uploading" | "processing" | "completed" | "error";
 }
 
@@ -19,24 +19,29 @@ const FileUpload = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      files.forEach(async file => {
+      files.forEach(async (file) => {
         if (file.status === 'processing') {
           try {
-            const response = await axios.get(`/api/files/${file._id}/status`);
+            const response = await api.get(`/files/${file._id}/status`);
             if (response.data.status !== 'processing') {
-              setFiles(prev => prev.map(f => f._id === file._id ? { ...f, status: response.data.status } : f));
+              setFiles((prev) =>
+                prev.map((f) =>
+                  f._id === file._id ? { ...f, status: response.data.status } : f
+                )
+              );
             }
           } catch (error) {
             console.error("Error fetching file status:", error);
           }
         }
       });
-    }, 5000); 
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [files]);
 
   const getFileIcon = (type: string) => {
+    if (!type) return FileText;
     if (type.includes("image")) return Image;
     if (type.includes("sheet") || type.includes("csv")) return FileSpreadsheet;
     if (type.includes("pdf")) return FileType;
@@ -55,7 +60,6 @@ const FileUpload = () => {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    
     const droppedFiles = Array.from(e.dataTransfer.files);
     processFiles(droppedFiles);
   };
@@ -69,36 +73,41 @@ const FileUpload = () => {
 
   const processFiles = async (fileList: File[]) => {
     const formData = new FormData();
-    fileList.forEach(file => {
-        formData.append('files', file);
-    });
+    fileList.forEach((file) => formData.append('files', file));
 
     try {
-        const uploadResponse = await axios.post('/api/files/upload', formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data',
-            },
-        });
+      const uploadResponse = await api.post('/files/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
 
-        const uploadedFiles = uploadResponse.data.uploadedFiles;
-        setFiles(prev => [...prev, ...uploadedFiles.map(f => ({...f, status: 'processing'}))]);
-        toast.success(`${fileList.length} file(s) added for processing`);
+      const uploadedFiles = uploadResponse.data.uploadedFiles;
+      
+      const newFiles = uploadedFiles.map(f => ({
+        _id: f._id,
+        originalFileName: f.originalFileName,
+        type: f.fileType,
+        fileSize: f.fileSize,
+        status: 'processing',
+      }));
 
-        for (const file of uploadedFiles) {
-            await axios.post(`/api/process/${file._id}`);
-        }
+      setFiles((prev) => [...prev, ...newFiles]);
+      toast.success(`${fileList.length} file(s) added for processing`);
 
+      for (const file of uploadedFiles) {
+        await api.post(`/process/${file._id}`);
+      }
     } catch (error) {
-        console.error("Error uploading files:", error);
-        toast.error("File upload failed.");
+      console.error("Error uploading files:", error);
+      toast.error("File upload failed.");
     }
   };
 
-  const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+  const removeFile = (id: string) => {
+    setFiles((prev) => prev.filter((file) => file._id !== id));
   };
 
   const formatFileSize = (bytes: number) => {
+    if (!bytes) return "0 B";
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
@@ -115,12 +124,10 @@ const FileUpload = () => {
             Upload CSV, PDF, PPTX, or image files to remove PII and extract insights
           </p>
         </div>
-
-        {/* Upload Zone */}
-        <Card 
+        <Card
           className={`border-2 border-dashed rounded-2xl p-12 mb-8 transition-all ${
-            isDragging 
-              ? "border-primary bg-primary/5 scale-105" 
+            isDragging
+              ? "border-primary bg-primary/5 scale-105"
               : "border-border hover:border-primary/50"
           }`}
           onDragOver={handleDragOver}
@@ -128,14 +135,13 @@ const FileUpload = () => {
           onDrop={handleDrop}
         >
           <div className="text-center">
-            <Upload className="w-16 h-16 text-primary mx-auto mb-4 animate-float" />
+            <Upload className="w-16 h-16 text-primary mx-auto mb-4" />
             <h3 className="text-xl font-semibold mb-2">
               Drag & drop files here
             </h3>
             <p className="text-muted-foreground mb-6">
               or click to browse
             </p>
-            
             <input
               type="file"
               multiple
@@ -144,47 +150,39 @@ const FileUpload = () => {
               id="file-input"
               accept=".csv,.pdf,.pptx,.xlsx,.jpg,.jpeg,.png"
             />
-            
             <label htmlFor="file-input">
-              <Button 
+              <Button
                 asChild
                 className="bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
               >
                 <span>Select Files</span>
               </Button>
             </label>
-            
             <p className="text-sm text-muted-foreground mt-4">
               Supported formats: CSV, PDF, PPTX, XLSX, JPG, PNG
             </p>
           </div>
         </Card>
-
-        {/* File List */}
         {files.length > 0 && (
           <div className="space-y-4">
             <h3 className="text-xl font-semibold mb-4">Processing Queue</h3>
-            
-            {files.map((file, idx) => {
+            {files.map((file) => {
               const Icon = getFileIcon(file.type);
-              
               return (
-                <Card 
-                  key={idx}
+                <Card
+                  key={file._id}
                   className="p-4 border-border hover:border-primary/50 transition-all"
                 >
                   <div className="flex items-center gap-4">
                     <div className="p-3 rounded-lg bg-primary/10">
                       <Icon className="w-6 h-6 text-primary" />
                     </div>
-                    
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{file.name}</p>
+                      <p className="font-medium truncate">{file.originalFileName}</p>
                       <p className="text-sm text-muted-foreground">
-                        {formatFileSize(file.size)}
+                        {formatFileSize(file.fileSize)}
                       </p>
                     </div>
-                    
                     <div className="flex items-center gap-3">
                       {file.status === "uploading" && (
                         <div className="flex items-center gap-2 text-accent">
@@ -192,32 +190,28 @@ const FileUpload = () => {
                           <span className="text-sm">Uploading...</span>
                         </div>
                       )}
-                      
                       {file.status === "processing" && (
                         <div className="flex items-center gap-2 text-secondary">
                           <div className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
                           <span className="text-sm">Processing...</span>
                         </div>
                       )}
-                      
                       {file.status === "completed" && (
                         <div className="flex items-center gap-2 text-primary">
                           <CheckCircle2 className="w-5 h-5" />
                           <span className="text-sm">Completed</span>
                         </div>
                       )}
-                      
                       {file.status === "error" && (
                         <div className="flex items-center gap-2 text-destructive">
                           <AlertCircle className="w-5 h-5" />
                           <span className="text-sm">Error</span>
                         </div>
                       )}
-                      
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => removeFile(idx)}
+                        onClick={() => removeFile(file._id)}
                         className="hover:bg-destructive/10 hover:text-destructive"
                       >
                         <X className="w-4 h-4" />
@@ -227,9 +221,8 @@ const FileUpload = () => {
                 </Card>
               );
             })}
-            
             {files.some(f => f.status === "completed") && (
-              <Button 
+              <Button
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 mt-6"
                 size="lg"
               >

@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Download, Eye, FileText, Image, AlertCircle, CheckCircle2 } from "lucide-react";
 import axios from 'axios';
-
+import api from '@/lib/api';
 const ResultsView = () => {
   const [analysisResults, setAnalysisResults] = useState([]);
 
   useEffect(() => {
       const fetchResults = async () => {
           try {
-              const response = await axios.get('/api/results');
+              const response = await api.get('/results');
               setAnalysisResults(response.data);
           } catch (error) {
               console.error("Error fetching results:", error);

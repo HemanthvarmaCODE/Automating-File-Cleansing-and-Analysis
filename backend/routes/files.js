@@ -12,16 +12,14 @@ router.post('/upload', [auth, upload.array('files')], async (req, res) => {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({ msg: 'No files were uploaded.' });
     }
-
     const filesToSave = req.files.map(file => ({
       userId: req.user.id,
       originalFileName: file.originalname,
       filePath: file.path,
       fileSize: file.size,
-      fileType: path.extname(file.originalname).substring(1),
+      fileType: path.extname(file.originalname).substring(1).toLowerCase(),
       status: 'queued',
     }));
-
     const insertedFiles = await FileUpload.insertMany(filesToSave);
     res.status(201).json({ uploadedFiles: insertedFiles });
   } catch (err) {
@@ -42,16 +40,16 @@ router.get('/', auth, async (req, res) => {
 
 router.get('/:fileId/status', auth, async (req, res) => {
     try {
+        // FIX: Ensure the user ID from the token is used in the query
         const file = await FileUpload.findOne({ _id: req.params.fileId, userId: req.user.id });
         if (!file) {
             return res.status(404).json({ msg: 'File not found' });
         }
         res.json({ status: file.status });
     } catch (err) {
-        console.error(err.message);
+        console.error("Error fetching file status:", err.message);
         res.status(500).send('Server Error');
     }
 });
-
 
 module.exports = router;

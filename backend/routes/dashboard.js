@@ -3,23 +3,31 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const FileUpload = require('../models/FileUpload');
 const AnalysisResult = require('../models/AnalysisResult');
+const mongoose = require('mongoose');
 
 router.get('/stats', auth, async (req, res) => {
     try {
-        const totalFilesProcessed = await FileUpload.countDocuments({ userId: req.user.id, status: 'completed' });
+        const userId = req.user.id; // Get user ID from token
 
-        const results = await AnalysisResult.find({ userId: req.user.id });
+        const totalFilesProcessed = await FileUpload.countDocuments({ userId: userId, status: 'completed' });
+
+        const results = await AnalysisResult.find({ userId: userId });
+
         const totalPIIRedacted = results.reduce((acc, result) => {
-            return acc + Object.values(result.piiDetected).reduce((sum, count) => sum + count, 0);
+            if (result.piiDetected && typeof result.piiDetected === 'object') {
+                return acc + Object.values(result.piiDetected).reduce((sum, count) => sum + (count || 0), 0);
+            }
+            return acc;
         }, 0);
         
         const avgProcessingTimeResult = await AnalysisResult.aggregate([
-            { $match: { userId: mongoose.Types.ObjectId(req.user.id) } },
+             // FIX: Do not use 'new' or convert the id, mongoose handles it
+            { $match: { userId: new mongoose.Types.ObjectId(userId) } },
             { $group: { _id: null, avgTime: { $avg: '$processingTime' } } }
         ]);
         const avgProcessingTime = avgProcessingTimeResult.length > 0 ? avgProcessingTimeResult[0].avgTime : 0;
 
-        const recentFiles = await FileUpload.find({ userId: req.user.id })
+        const recentFiles = await FileUpload.find({ userId: userId })
             .sort({ uploadedAt: -1 })
             .limit(5);
 
@@ -31,7 +39,7 @@ router.get('/stats', auth, async (req, res) => {
         });
 
     } catch (err) {
-        console.error(err.message);
+        console.error("Error fetching dashboard stats:", err.message);
         res.status(500).send('Server Error');
     }
 });
