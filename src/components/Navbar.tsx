@@ -27,7 +27,7 @@ const Navbar = () => {
           <Link to="/" className="flex items-center gap-2 group">
             <Shield className="w-8 h-8 text-primary group-hover:animate-glow-pulse transition-all" />
             <span className="font-bold text-xl bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              SecureClean
+              Secure-38
             </span>
           </Link>
 
