@@ -2,11 +2,10 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const AnalysisResult = require('../models/AnalysisResult');
-const AnalysisSession = require('../models/AnalysisSession'); // FIX: Import the AnalysisSession model
+const AnalysisSession = require('../models/AnalysisSession'); 
 const path = require('path');
 const fs = require('fs');
 
-// GET results for the latest session
 router.get('/latest', auth, async (req, res) => {
     try {
         const latestSession = await AnalysisSession.findOne({ userId: req.user.id }).sort({ createdAt: -1 });
@@ -21,7 +20,6 @@ router.get('/latest', auth, async (req, res) => {
     }
 });
 
-// GET download cleansed file by result ID
 router.get('/:resultId/download', auth, async (req, res) => {
     try {
         const result = await AnalysisResult.findById(req.params.resultId);

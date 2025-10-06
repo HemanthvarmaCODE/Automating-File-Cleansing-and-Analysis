@@ -19,11 +19,11 @@ const userSchema = new mongoose.Schema({
   },
   storageUsed: {
     type: Number,
-    default: 0 // in bytes
+    default: 0 
   },
   storageLimit: {
     type: Number,
-    default: 52428800 // 50 MB default limit
+    default: 52428800 
   },
   createdAt: {
     type: Date,

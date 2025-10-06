@@ -19,7 +19,6 @@ router.post('/:sessionId', auth, async (req, res) => {
         const scriptPath = path.resolve(__dirname, '..', 'python_model', 'process.py');
         const pythonExecutable = process.env.PYTHON_PATH || 'python';
         
-        // Create a temporary directory for this session's files
         const sessionDir = path.resolve(process.env.UPLOAD_DIR, req.params.sessionId);
         if (!require('fs').existsSync(sessionDir)) require('fs').mkdirSync(sessionDir);
 

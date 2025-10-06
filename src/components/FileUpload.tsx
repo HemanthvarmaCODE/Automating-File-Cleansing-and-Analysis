@@ -13,7 +13,6 @@ interface QueuedFile {
 }
 
 const FileUpload = () => {
-  // This state will now hold the files selected from the user's computer
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -28,7 +27,6 @@ const FileUpload = () => {
   };
 
   const addFilesToQueue = (files: File[]) => {
-    // Prevent duplicates and add new files
     const newFiles = files.filter(
       (file) => !selectedFiles.some((existingFile) => existingFile.name === file.name)
     );
@@ -75,14 +73,12 @@ const FileUpload = () => {
     });
 
     try {
-    // Step 1: Upload
     const uploadResponse = await api.post('/files/upload', formData);
     console.log("Upload response:", uploadResponse.data);
       
     const { sessionId } = uploadResponse.data;
     if (!sessionId) throw new Error("No sessionId returned from upload.");
 
-    // Step 2: Trigger processing
     const processResponse = await api.post(`/process/${sessionId}`);
     console.log("Process response:", processResponse.data);
 
@@ -96,7 +92,7 @@ const FileUpload = () => {
     toast.error(`Processing failed: ${errorMessage}`);
   } finally {
       setIsUploading(false);
-      setSelectedFiles([]); // Clear the queue after processing
+      setSelectedFiles([]); 
     }
   };
 
