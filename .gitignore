@@ -26,3 +26,5 @@ backend/uploads
 backend/.env
 .env
 backend/redacted_images
+# Python virtual environment
+backend/python_model/venv/
